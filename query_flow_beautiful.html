@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Chatbot Architecture - Interactive Flow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            position: relative;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInDown 1s ease;
+        }
+
+        .header h1 {
+            font-size: 3.5em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            letter-spacing: -1px;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.2em;
+            font-weight: 300;
+        }
+
+        .flow-container {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 30px;
+            margin-bottom: 60px;
+            position: relative;
+        }
+
+        .flow-layer {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .layer-title {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flow-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.8s ease backwards;
+        }
+
+        .flow-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
+            transform: translateX(-100%);
+            transition: transform 0.6s ease;
+        }
+
+        .flow-card:hover::before {
+            transform: translateX(100%);
+        }
+
+        .flow-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .flow-card .icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+
+        .flow-card h3 {
+            color: white;
+            font-size: 1.1em;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .flow-card p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+
+        .flow-card .file-ref {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            font-size: 0.75em;
+            color: rgba(255, 255, 255, 0.8);
+            font-family: 'Courier New', monospace;
+            display: inline-block;
+        }
+
+        /* Color coding for different layers */
+        .frontend { color: #4CAF50; }
+        .api { color: #2196F3; }
+        .rag { color: #FF9800; }
+        .ai { color: #9C27B0; }
+        .tools { color: #F44336; }
+        .db { color: #795548; }
+        .response { color: #00BCD4; }
+
+        /* Animated connection lines */
+        .connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .connection-line {
+            stroke: rgba(255, 255, 255, 0.2);
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 5, 5;
+            animation: dash 20s linear infinite;
+        }
+
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -100;
+            }
+        }
+
+        /* Data flow animation */
+        .data-flow {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: radial-gradient(circle, #fff, transparent);
+            border-radius: 50%;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .data-flow.active {
+            animation: flowData 3s ease-in-out infinite;
+        }
+
+        @keyframes flowData {
+            0% {
+                opacity: 0;
+                transform: translateX(0);
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+        }
+
+        /* Feature cards */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-top: 60px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 25px;
+            padding: 30px;
+            transition: all 0.3s ease;
+            animation: fadeInUp 1s ease backwards;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature-card .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .feature-card h3 {
+            color: white;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+
+        .feature-card ul {
+            list-style: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.95em;
+            line-height: 1.8;
+        }
+
+        .feature-card li {
+            position: relative;
+            padding-left: 25px;
+            margin-bottom: 8px;
+        }
+
+        .feature-card li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Pulse animation for active cards */
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(102, 126, 234, 0);
+            }
+        }
+
+        .flow-card.active {
+            animation: pulse 2s infinite;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .flow-container {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            .flow-layer:nth-child(n+5) {
+                grid-column: span 2;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .flow-container {
+                grid-template-columns: 1fr;
+            }
+            .header h1 {
+                font-size: 2.5em;
+            }
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 0.85em;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+            max-width: 250px;
+        }
+
+        .tooltip.show {
+            opacity: 1;
+        }
+
+        /* Interactive timeline */
+        .timeline {
+            margin: 60px 0;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .timeline h2 {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            font-size: 2em;
+        }
+
+        .timeline-items {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timeline-items::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(180deg, transparent, #667eea, #764ba2, transparent);
+        }
+
+        .timeline-item {
+            display: flex;
+            margin-bottom: 40px;
+            position: relative;
+            animation: fadeInUp 1s ease backwards;
+        }
+
+        .timeline-item:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+
+        .timeline-content {
+            flex: 1;
+            padding: 20px 30px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            margin: 0 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .timeline-content:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+        }
+        
+        .timeline-content h3 {
+            color: #ffffff;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .timeline-content p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+        
+        .sub-steps {
+            list-style: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 12px;
+            border-left: 3px solid rgba(102, 126, 234, 0.5);
+        }
+        
+        .sub-steps li {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.88em;
+            line-height: 1.8;
+            padding: 4px 0;
+            transition: all 0.2s ease;
+        }
+        
+        .sub-steps li:hover {
+            color: rgba(255, 255, 255, 1);
+            transform: translateX(5px);
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            border: 3px solid #24243e;
+            z-index: 1;
+        }
+
+        .timeline-number {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.3em;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="stars"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>RAG Chatbot Architecture</h1>
+            <p>Interactive Query Processing Pipeline</p>
+        </div>
+
+        <div class="flow-container">
+            <svg class="connections" viewBox="0 0 1400 400">
+                <path class="connection-line" d="M 100,200 Q 250,200 400,200 T 700,200 T 1000,200 T 1300,200" />
+            </svg>
+
+            <div class="flow-layer" style="animation-delay: 0.1s">
+                <div class="layer-title">Frontend</div>
+                <div class="flow-card frontend">
+                    <div class="icon">🌐</div>
+                    <h3>User Interface</h3>
+                    <p>Chat input & display</p>
+                    <div class="file-ref">index.html</div>
+                </div>
+                <div class="flow-card frontend">
+                    <div class="icon">⚡</div>
+                    <h3>Event Handler</h3>
+                    <p>Capture & send query</p>
+                    <div class="file-ref">script.js:45</div>
+                </div>
+            </div>
+
+            <div class="flow-layer" style="animation-delay: 0.2s">
+                <div class="layer-title">API Gateway</div>
+                <div class="flow-card api">
+                    <div class="icon">🚀</div>
+                    <h3>FastAPI Server</h3>
+                    <p>Request validation</p>
+                    <div class="file-ref">app.py:56</div>
+                </div>
+                <div class="flow-card api">
+                    <div class="icon">🔐</div>
+                    <h3>Session Manager</h3>
+                    <p>Track conversations</p>
+                    <div class="file-ref">app.py:63</div>
+                </div>
+            </div>
+
+            <div class="flow-layer" style="animation-delay: 0.3s">
+                <div class="layer-title">RAG System</div>
+                <div class="flow-card rag">
+                    <div class="icon">🧩</div>
+                    <h3>Orchestrator</h3>
+                    <p>Coordinate pipeline</p>
+                    <div class="file-ref">rag_system.py:102</div>
+                </div>
+                <div class="flow-card rag">
+                    <div class="icon">📝</div>
+                    <h3>Context Builder</h3>
+                    <p>History & prompts</p>
+                    <div class="file-ref">rag_system.py:117</div>
+                </div>
+            </div>
+
+            <div class="flow-layer" style="animation-delay: 0.4s">
+                <div class="layer-title">AI Engine</div>
+                <div class="flow-card ai">
+                    <div class="icon">🤖</div>
+                    <h3>Claude API</h3>
+                    <p>Analyze query</p>
+                    <div class="file-ref">ai_generator.py:43</div>
+                </div>
+                <div class="flow-card ai">
+                    <div class="icon">🎯</div>
+                    <h3>Tool Decision</h3>
+                    <p>Search or direct</p>
+                    <div class="file-ref">ai_generator.py:83</div>
+                </div>
+            </div>
+
+            <div class="flow-layer" style="animation-delay: 0.5s">
+                <div class="layer-title">Search Tools</div>
+                <div class="flow-card tools">
+                    <div class="icon">🔍</div>
+                    <h3>Search Tool</h3>
+                    <p>Execute queries</p>
+                    <div class="file-ref">search_tools.py:52</div>
+                </div>
+                <div class="flow-card tools">
+                    <div class="icon">📊</div>
+                    <h3>Vector Search</h3>
+                    <p>Semantic matching</p>
+                    <div class="file-ref">vector_store.py:61</div>
+                </div>
+            </div>
+
+            <div class="flow-layer" style="animation-delay: 0.6s">
+                <div class="layer-title">Database</div>
+                <div class="flow-card db">
+                    <div class="icon">💾</div>
+                    <h3>ChromaDB</h3>
+                    <p>Vector storage</p>
+                    <div class="file-ref">vector_store.py:40</div>
+                </div>
+                <div class="flow-card db">
+                    <div class="icon">📚</div>
+                    <h3>Embeddings</h3>
+                    <p>Course chunks</p>
+                    <div class="file-ref">vector_store.py:46</div>
+                </div>
+            </div>
+
+            <div class="flow-layer" style="animation-delay: 0.7s">
+                <div class="layer-title">Response</div>
+                <div class="flow-card response">
+                    <div class="icon">✨</div>
+                    <h3>Generator</h3>
+                    <p>Final answer</p>
+                    <div class="file-ref">ai_generator.py:134</div>
+                </div>
+                <div class="flow-card response">
+                    <div class="icon">📤</div>
+                    <h3>JSON Result</h3>
+                    <p>Sources & text</p>
+                    <div class="file-ref">app.py:68</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline">
+            <h2>Processing Flow Timeline</h2>
+            <div class="timeline-items">
+                <div class="timeline-item">
+                    <div class="timeline-number">1</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <h3>User Input Capture</h3>
+                        <p>JavaScript captures query, disables input, shows loading animation</p>
+                        <ul class="sub-steps">
+                            <li>✓ User types query in chat input field</li>
+                            <li>✓ Press Enter or click Send button triggers sendMessage()</li>
+                            <li>✓ Input field value extracted and trimmed</li>
+                            <li>✓ Input/button disabled to prevent duplicates</li>
+                            <li>✓ User message added to chat display</li>
+                            <li>✓ Loading animation appears</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">2</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <h3>API Processing</h3>
+                        <p>FastAPI validates request, manages session, routes to RAG system</p>
+                        <ul class="sub-steps">
+                            <li>✓ POST request sent to /api/query endpoint</li>
+                            <li>✓ JSON payload contains query and session_id</li>
+                            <li>✓ FastAPI validates request with Pydantic model</li>
+                            <li>✓ Check if session_id exists or create new</li>
+                            <li>✓ Pass request to rag_system.query()</li>
+                            <li>✓ Handle errors with HTTPException if needed</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">3</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <h3>AI Analysis</h3>
+                        <p>Claude determines if course search is needed based on query</p>
+                        <ul class="sub-steps">
+                            <li>✓ Format query into AI prompt with instructions</li>
+                            <li>✓ Retrieve conversation history from session</li>
+                            <li>✓ Include available tools (search_course_content)</li>
+                            <li>✓ Send to Claude API with temperature=0</li>
+                            <li>✓ Claude analyzes query intent</li>
+                            <li>✓ Decides: use search tool or respond directly</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">4</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <h3>Vector Search</h3>
+                        <p>ChromaDB performs semantic search on course embeddings</p>
+                        <ul class="sub-steps">
+                            <li>✓ Tool manager executes CourseSearchTool</li>
+                            <li>✓ Optional course name resolution if provided</li>
+                            <li>✓ Query converted to embeddings via SentenceTransformer</li>
+                            <li>✓ ChromaDB searches course_content collection</li>
+                            <li>✓ Apply filters (course name, lesson number)</li>
+                            <li>✓ Return top K results with metadata & distances</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">5</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <h3>Response Generation</h3>
+                        <p>Claude synthesizes final answer with context and sources</p>
+                        <ul class="sub-steps">
+                            <li>✓ Tool results passed back to Claude</li>
+                            <li>✓ Claude processes search results as context</li>
+                            <li>✓ Generate comprehensive answer (max 800 tokens)</li>
+                            <li>✓ Session history updated with Q&A pair</li>
+                            <li>✓ Extract sources from tool manager</li>
+                            <li>✓ Format response with answer and sources</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-number">6</div>
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <h3>Display Result</h3>
+                        <p>Frontend renders formatted response with collapsible sources</p>
+                        <ul class="sub-steps">
+                            <li>✓ Frontend receives JSON response</li>
+                            <li>✓ Remove loading animation</li>
+                            <li>✓ Parse markdown in answer using marked.js</li>
+                            <li>✓ Add message to chat with assistant styling</li>
+                            <li>✓ Create collapsible sources section if present</li>
+                            <li>✓ Re-enable input field and focus</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="features">
+            <div class="feature-card" style="animation-delay: 0.2s">
+                <div class="feature-icon">⚡</div>
+                <h3>Performance Optimized</h3>
+                <ul>
+                    <li>Async request handling</li>
+                    <li>Efficient vector search</li>
+                    <li>Response caching</li>
+                    <li>Optimized embeddings</li>
+                </ul>
+            </div>
+
+            <div class="feature-card" style="animation-delay: 0.3s">
+                <div class="feature-icon">🔒</div>
+                <h3>Security Features</h3>
+                <ul>
+                    <li>CORS middleware</li>
+                    <li>Session isolation</li>
+                    <li>API key protection</li>
+                    <li>Input validation</li>
+                </ul>
+            </div>
+
+            <div class="feature-card" style="animation-delay: 0.4s">
+                <div class="feature-icon">🎯</div>
+                <h3>Smart Search</h3>
+                <ul>
+                    <li>Semantic matching</li>
+                    <li>Course filtering</li>
+                    <li>Lesson targeting</li>
+                    <li>Context awareness</li>
+                </ul>
+            </div>
+
+            <div class="feature-card" style="animation-delay: 0.5s">
+                <div class="feature-icon">🧠</div>
+                <h3>AI Capabilities</h3>
+                <ul>
+                    <li>Claude integration</li>
+                    <li>Tool-based search</li>
+                    <li>Context synthesis</li>
+                    <li>Source tracking</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Create stars
+        function createStars() {
+            const starsContainer = document.querySelector('.stars');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 3 + 's';
+                starsContainer.appendChild(star);
+            }
+        }
+
+        // Interactive card highlighting
+        function initCardInteractions() {
+            const cards = document.querySelectorAll('.flow-card');
+            let currentActive = 0;
+
+            // Auto-highlight cards in sequence
+            setInterval(() => {
+                cards.forEach(card => card.classList.remove('active'));
+                cards[currentActive].classList.add('active');
+                currentActive = (currentActive + 1) % cards.length;
+            }, 2000);
+
+            // Add hover effects
+            cards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-10px) scale(1.05) rotateX(5deg)';
+                });
+
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = '';
+                });
+            });
+        }
+
+        // Animate data flow
+        function animateDataFlow() {
+            const containers = document.querySelectorAll('.flow-layer');
+            
+            setInterval(() => {
+                const flow = document.createElement('div');
+                flow.className = 'data-flow active';
+                flow.style.top = '50%';
+                flow.style.left = '0';
+                
+                containers[Math.floor(Math.random() * containers.length)].appendChild(flow);
+                
+                setTimeout(() => flow.remove(), 3000);
+            }, 1500);
+        }
+
+        // Initialize animations on load
+        document.addEventListener('DOMContentLoaded', () => {
+            createStars();
+            initCardInteractions();
+            animateDataFlow();
+        });
+
+        // Parallax effect on mouse move
+        document.addEventListener('mousemove', (e) => {
+            const cards = document.querySelectorAll('.flow-card');
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+
+            cards.forEach((card, index) => {
+                const speed = 5 + (index * 0.5);
+                const xOffset = (x - 0.5) * speed;
+                const yOffset = (y - 0.5) * speed;
+                
+                card.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
+            });
+        });
+    </script>
+</body>
+</html>
