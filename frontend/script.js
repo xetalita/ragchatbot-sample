@@ -5,7 +5,7 @@ const API_URL = '/api';
 let currentSessionId = null;
 
 // DOM elements
-let chatMessages, chatInput, sendButton, totalCourses, courseTitles;
+let chatMessages, chatInput, sendButton, totalCourses, courseTitles, newChatButton;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sendButton = document.getElementById('sendButton');
     totalCourses = document.getElementById('totalCourses');
     courseTitles = document.getElementById('courseTitles');
+    newChatButton = document.getElementById('newChatButton');
     
     setupEventListeners();
     createNewSession();
@@ -29,6 +30,13 @@ function setupEventListeners() {
         if (e.key === 'Enter') sendMessage();
     });
     
+    // New Chat button
+    if (newChatButton) {
+        newChatButton.addEventListener('click', () => {
+            createNewSession();
+            chatInput.focus(); // Focus input for user convenience
+        });
+    }
     
     // Suggested questions
     document.querySelectorAll('.suggested-item').forEach(button => {
@@ -74,6 +82,10 @@ async function sendMessage() {
         if (!response.ok) throw new Error('Query failed');
 
         const data = await response.json();
+        
+        // Debug: Log the entire response
+        console.log('API Response:', data);
+        console.log('Sources from API:', data.sources);
         
         // Update session ID if new
         if (!currentSessionId) {
@@ -122,10 +134,41 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     let html = `<div class="message-content">${displayContent}</div>`;
     
     if (sources && sources.length > 0) {
+        // Debug logging
+        console.log('Sources received:', sources);
+        
+        // Format sources - handle both string and object formats
+        const formattedSources = sources.map(source => {
+            console.log('Processing source:', source, 'Type:', typeof source);
+            
+            if (typeof source === 'string') {
+                // Legacy string format
+                return source;
+            } else if (typeof source === 'object' && source !== null) {
+                // New object format with optional link
+                if (source.text) {
+                    if (source.link) {
+                        // Create clickable link that opens in new tab
+                        return `<a href="${source.link}" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor;">${source.text}</a>`;
+                    } else {
+                        // No link available, just show text
+                        return source.text;
+                    }
+                } else {
+                    // If object doesn't have text property, try to convert to string
+                    console.warn('Source object missing text property:', source);
+                    return JSON.stringify(source);
+                }
+            }
+            return '';
+        }).filter(s => s); // Remove empty strings
+        
+        console.log('Formatted sources:', formattedSources);
+        
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <div class="sources-content">${formattedSources.join(', ')}</div>
             </details>
         `;
     }
