@@ -101,13 +101,14 @@ class RAGSystem:
         
         return total_courses, total_chunks
     
-    def query(self, query: str, session_id: Optional[str] = None) -> Tuple[str, List[str]]:
+    def query(self, query: str, session_id: Optional[str] = None, max_rounds: int = 2) -> Tuple[str, List[str]]:
         """
         Process a user query using the RAG system with tool-based search.
         
         Args:
             query: User's question
             session_id: Optional session ID for conversation context
+            max_rounds: Maximum sequential tool calling rounds (default 2)
             
         Returns:
             Tuple of (response, sources list - empty for tool-based approach)
@@ -125,7 +126,8 @@ class RAGSystem:
             query=prompt,
             conversation_history=history,
             tools=self.tool_manager.get_tool_definitions(),
-            tool_manager=self.tool_manager
+            tool_manager=self.tool_manager,
+            max_rounds=max_rounds
         )
         
         # Get sources from the search tool
